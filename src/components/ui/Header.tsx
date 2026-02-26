@@ -1,111 +1,98 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { Users, Settings, LogIn, LogOut, Activity } from 'lucide-react';
+import { Users, Settings, LogIn, LogOut, Activity, Bot } from 'lucide-react';
 import { ContactsModal } from '../contacts/ContactsModal';
 import { SettingsModal } from './SettingsModal';
 import { useAuth } from '../../contexts/AuthContext';
 
+const NavIconBtn = ({
+    icon, label, onClick, danger = false
+}: { icon: React.ReactNode; label?: string; onClick: () => void; danger?: boolean }) => (
+    <button
+        onClick={onClick}
+        className="btn-ghost"
+        style={{
+            padding: label ? '8px 14px' : '8px 10px',
+            color: danger ? '#ef4444' : undefined,
+            border: danger ? '1px solid rgba(239,68,68,0.25)' : undefined,
+            background: danger ? 'rgba(239,68,68,0.08)' : undefined,
+            gap: '6px',
+        }}
+        title={label}
+    >
+        {icon}
+        {label && <span style={{ fontSize: '0.85rem' }}>{label}</span>}
+    </button>
+);
+
 export const Header = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const path = useLocation().pathname;
     const [isContactsOpen, setIsContactsOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+    const initials = user
+        ? (user.name || user.email)
+            .split(' ')
+            .map((w: string) => w[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase()
+        : '';
+
     return (
         <header className="app-header">
-            <div className="logo-section">
-                <h2>AgentWallet<span style={{ color: 'var(--accent-color)' }}>.AI</span></h2>
+            {/* Logo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                    width: '32px', height: '32px', borderRadius: '10px',
+                    background: 'linear-gradient(135deg, var(--accent-color), #2dd4bf)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <Bot size={18} color="#fff" />
+                </div>
+                <h2 style={{ fontSize: '1.2rem', letterSpacing: '-0.01em' }}>
+                    AgentWallet<span style={{ color: 'var(--accent-color)' }}>.AI</span>
+                </h2>
             </div>
-            <div className="wallet-section" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+
+            {/* Right side actions */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <NavIconBtn icon={<Users size={15} />} label="Contacts" onClick={() => setIsContactsOpen(true)} />
+                <NavIconBtn icon={<Activity size={15} />} label={path === "/analytics" ? "Chat" : "Analytics"} onClick={() => navigate(path === "/analytics" ? "/" : "/analytics")} />
+                <NavIconBtn icon={<Settings size={15} />} label="Settings" onClick={() => setIsSettingsOpen(true)} />
+
+                <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 4px' }} />
+
+                <WalletMultiButton />
+
                 {user ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{
-                            fontSize: '0.85rem',
-                            color: 'var(--text)',
-                            background: 'rgba(255, 255, 255, 0.1)',
-                            padding: '4px 8px',
-                            borderRadius: '8px',
-                            fontWeight: 'bold'
-                        }}>
-                            {user.name || user.email.split('@')[0]}
+                        <div className="avatar" title={user.name || user.email}>
+                            {initials}
                         </div>
-                        <button
+                        <NavIconBtn
+                            icon={<LogOut size={14} />}
+                            label="Logout"
                             onClick={logout}
-                            className="glass-panel"
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: '6px',
-                                padding: '8px 12px', border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '8px', cursor: 'pointer', background: 'rgba(239, 68, 68, 0.2)',
-                                color: '#ef4444', fontWeight: 'bold'
-                            }}
-                        >
-                            <LogOut size={16} /> Logout
-                        </button>
+                            danger
+                        />
                     </div>
                 ) : (
                     <button
                         onClick={() => navigate('/auth')}
-                        className="glass-panel"
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: '6px',
-                            padding: '8px 12px', border: '1px solid var(--accent-color)',
-                            borderRadius: '8px', cursor: 'pointer', background: 'var(--accent-color)',
-                            color: 'white', fontWeight: 'bold'
-                        }}
+                        className="btn-primary"
+                        style={{ padding: '8px 16px', fontSize: '0.88rem', height: '36px' }}
                     >
-                        <LogIn size={16} /> Get Started
+                        <LogIn size={14} /> Get Started
                     </button>
                 )}
-
-                <button
-                    onClick={() => setIsContactsOpen(true)}
-                    className="glass-panel"
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: '6px',
-                        padding: '8px 12px', border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '8px', cursor: 'pointer', background: 'rgba(0,0,0,0.2)',
-                        color: 'var(--text)', fontWeight: 'bold'
-                    }}
-                >
-                    <Users size={16} /> Contacts
-                </button>
-                <button
-                    onClick={() => navigate('/analytics')}
-                    className="glass-panel"
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: '6px',
-                        padding: '8px 12px', border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '8px', cursor: 'pointer', background: 'rgba(0,0,0,0.2)',
-                        color: 'var(--text)', fontWeight: 'bold'
-                    }}
-                >
-                    <Activity size={16} /> Analytics
-                </button>
-                <button
-                    onClick={() => setIsSettingsOpen(true)}
-                    className="glass-panel"
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: '6px',
-                        padding: '8px 12px', border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '8px', cursor: 'pointer', background: 'rgba(0,0,0,0.2)',
-                        color: 'var(--text)', fontWeight: 'bold'
-                    }}
-                    title="AI Settings"
-                >
-                    <Settings size={16} />
-                </button>
-                <WalletMultiButton />
             </div>
 
-            <ContactsModal
-                isOpen={isContactsOpen}
-                onClose={() => setIsContactsOpen(false)}
-            />
-            <SettingsModal
-                isOpen={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-            />
+            <ContactsModal isOpen={isContactsOpen} onClose={() => setIsContactsOpen(false)} />
+            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
         </header>
     );
 };

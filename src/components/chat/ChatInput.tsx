@@ -1,13 +1,15 @@
-import { useState, useRef, type KeyboardEvent, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, type KeyboardEvent, type ChangeEvent } from 'react';
 import { SendIcon } from 'lucide-react';
 import { contactService, type Contact } from '../../services/contact.service';
 
 interface ChatInputProps {
     onSend: (message: string) => void;
     disabled?: boolean;
+    prefillText?: string;
+    contextPlaceholder?: string;
 }
 
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, prefillText, contextPlaceholder }: ChatInputProps) {
     const [text, setText] = useState('');
     const [suggestions, setSuggestions] = useState<Contact[]>([]);
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
@@ -15,6 +17,14 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     const [mentionStartIdx, setMentionStartIdx] = useState<number | null>(null);
 
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Pre-fill from parent (quick commands)
+    useEffect(() => {
+        if (prefillText !== undefined) {
+            setText(prefillText);
+            inputRef.current?.focus();
+        }
+    }, [prefillText]);
 
     const handleSend = () => {
         if (text.trim() && !disabled) {
@@ -31,8 +41,6 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
         const cursorPosition = e.target.selectionStart || 0;
         const textBeforeCursor = val.slice(0, cursorPosition);
-
-        // Find @ followed by word characters right before cursor
         const match = textBeforeCursor.match(/@([a-zA-Z0-9_]*)$/);
 
         if (match) {
@@ -53,9 +61,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         if (mentionStartIdx !== null) {
             const beforeMention = text.slice(0, mentionStartIdx);
             const afterMentionText = text.slice(mentionStartIdx + 1 + mentionSearch.length);
-
-            const newText = beforeMention + `@${contact.name} ` + afterMentionText;
-            setText(newText);
+            setText(beforeMention + `@${contact.name} ` + afterMentionText);
         }
         setSuggestions([]);
         setMentionStartIdx(null);
@@ -66,12 +72,12 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         if (suggestions.length > 0) {
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                setActiveSuggestionIndex((prev) => (prev + 1) % suggestions.length);
+                setActiveSuggestionIndex(prev => (prev + 1) % suggestions.length);
                 return;
             }
             if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                setActiveSuggestionIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+                setActiveSuggestionIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
                 return;
             }
             if (e.key === 'Enter' || e.key === 'Tab') {
@@ -85,7 +91,6 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                 return;
             }
         }
-
         if (e.key === 'Enter') {
             handleSend();
         }
@@ -93,61 +98,81 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
     return (
         <div className="chat-input-wrapper" style={{ position: 'relative', width: '100%' }}>
+            {/* @mention autocomplete dropdown */}
             {suggestions.length > 0 && (
-                <div className="mentions-dropdown glass-panel" style={{
+                <div className="glass-panel" style={{
                     position: 'absolute',
                     bottom: '100%',
-                    left: 0,
-                    right: 0,
+                    left: 0, right: 0,
                     marginBottom: '8px',
-                    background: 'var(--surface)',
                     borderRadius: '12px',
                     padding: '8px',
                     zIndex: 10,
                     maxHeight: '200px',
                     overflowY: 'auto',
-                    border: '1px solid rgba(255,255,255,0.1)'
                 }}>
                     {suggestions.map((contact, index) => (
                         <div
                             key={contact.id}
-                            className={`mention-item ${index === activeSuggestionIndex ? 'active' : ''}`}
                             style={{
                                 padding: '8px 12px',
                                 cursor: 'pointer',
                                 borderRadius: '8px',
-                                background: index === activeSuggestionIndex ? 'rgba(255,255,255,0.1)' : 'transparent',
+                                background: index === activeSuggestionIndex ? 'rgba(123,66,246,0.1)' : 'transparent',
                                 display: 'flex',
                                 justifyContent: 'space-between',
-                                color: 'var(--text)'
+                                alignItems: 'center'
                             }}
                             onClick={() => applySuggestion(contact)}
                             onMouseEnter={() => setActiveSuggestionIndex(index)}
                         >
-                            <span style={{ fontWeight: 'bold' }}>@{contact.name}</span>
-                            <span style={{ opacity: 0.5, fontSize: '0.8rem' }}>{contact.address.slice(0, 4)}...{contact.address.slice(-4)}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>@{contact.name}</span>
+                            <span style={{ opacity: 0.45, fontSize: '0.78rem', fontFamily: 'monospace' }}>
+                                {contact.address.slice(0, 4)}…{contact.address.slice(-4)}
+                            </span>
                         </div>
                     ))}
                 </div>
             )}
-            <div className="chat-input-container glass-panel">
+
+            {/* Main input row */}
+            <div className="chat-input-container glass-panel" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
                 <input
                     ref={inputRef}
                     type="text"
                     className="chat-input"
-                    placeholder={disabled ? "Processing..." : "e.g., Send 0.1 SOL to @rahul..."}
+                    placeholder={
+                        disabled
+                            ? 'Agent is thinking…'
+                            : contextPlaceholder
+                            || 'Ask me anything — "Send 0.5 SOL to @alice"'
+                    }
                     value={text}
                     onChange={handleTextChange}
                     onKeyDown={handleKeyDown}
                     disabled={disabled}
                     autoFocus
                 />
+
+                {/* Keyboard hint */}
+                {text.trim() && !disabled && (
+                    <span style={{
+                        fontSize: '0.72rem',
+                        color: 'var(--text-secondary)',
+                        opacity: 0.6,
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                    }}>
+                        ↵ send
+                    </span>
+                )}
+
                 <button
-                    className="chat-submit-btn"
+                    className={`chat-submit-btn${disabled ? ' processing' : ''}`}
                     onClick={handleSend}
                     disabled={!text.trim() || disabled}
                 >
-                    <SendIcon size={20} />
+                    <SendIcon size={18} />
                 </button>
             </div>
         </div>

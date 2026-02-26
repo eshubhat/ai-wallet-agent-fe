@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { type StakeAccount } from '../../services/stake.service';
-import { Activity, RefreshCw } from 'lucide-react';
+import { Activity, RefreshCw, Layers } from 'lucide-react';
 
 export function StakeDashboard({ stakes, loading }: { stakes: StakeAccount[], loading: boolean }) {
     const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
     useEffect(() => {
-        if (!loading) {
-            setLastUpdated(new Date());
-        }
+        if (!loading) setLastUpdated(new Date());
     }, [stakes, loading]);
 
     const shortenPubkey = (key: string) => {
@@ -16,86 +14,92 @@ export function StakeDashboard({ stakes, loading }: { stakes: StakeAccount[], lo
         return `${key.slice(0, 4)}...${key.slice(-4)}`;
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status?.toLowerCase()) {
-            case 'active': return '#4caf50'; // Green
-            case 'activating': return '#ff9800'; // Orange
-            case 'deactivating': return '#f44336'; // Red
-            case 'inactive': return '#9e9e9e'; // Grey
-            default: return '#9e9e9e';
-        }
+    const statusColors: Record<string, string> = {
+        active: '#10b981',
+        activating: '#f59e0b',
+        deactivating: '#ef4444',
+        inactive: '#6b7280',
     };
 
-    if (loading && stakes.length === 0) {
-        return (
-            <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '150px' }}>
-                <RefreshCw className="spin" size={24} color="var(--primary)" />
-            </div>
-        );
-    }
-
-    if (stakes.length === 0) {
-        return null; // hide if no stakes yet to keep it minimal
-    }
+    const getStatusColor = (status: string) =>
+        statusColors[status?.toLowerCase()] ?? '#6b7280';
 
     return (
-        <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '1.1rem' }}>
-                    <Activity size={20} color="var(--primary)" /> Active Stakes
+        <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+                    <Activity size={17} color="var(--accent-color)" /> Active Stakes
                 </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Refreshes every 30s
-                    </span>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', opacity: 0.7 }}>
-                        Updated {lastUpdated.toLocaleTimeString()}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1px' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Auto-refresh · 30s</span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', opacity: 0.6 }}>
+                        {lastUpdated.toLocaleTimeString()}
                     </span>
                 </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {stakes.map((stake) => (
-                    <div
-                        key={stake.id}
-                        style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '12px 16px',
-                            background: 'rgba(255,255,255,0.03)',
-                            border: '1px solid rgba(255,255,255,0.05)',
-                            borderRadius: '12px'
-                        }}
-                    >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <span style={{ fontFamily: 'monospace', fontSize: '0.9rem', color: 'var(--text)' }}>
-                                {shortenPubkey(stake.stakeAccountPubkey)}
-                            </span>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                {stake.amount} SOL
-                            </span>
-                        </div>
+            {/* Loading spinner */}
+            {loading && stakes.length === 0 && (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem 0' }}>
+                    <RefreshCw className="spin" size={22} color="var(--accent-color)" />
+                </div>
+            )}
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '50%',
-                                backgroundColor: getStatusColor(stake.activationState)
-                            }} />
-                            <span style={{
-                                fontSize: '0.85rem',
-                                fontWeight: 500,
-                                color: getStatusColor(stake.activationState),
-                                textTransform: 'capitalize'
-                            }}>
-                                {stake.activationState || 'Unknown'}
-                            </span>
+            {/* Empty state */}
+            {!loading && stakes.length === 0 && (
+                <div className="empty-state">
+                    <Layers size={28} className="empty-state-icon" />
+                    <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                        No active stakes yet.
+                    </p>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', opacity: 0.6 }}>
+                        Try: <em>"Stake 1 SOL"</em>
+                    </p>
+                </div>
+            )}
+
+            {/* Stake list */}
+            {stakes.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {stakes.map((stake) => (
+                        <div
+                            key={stake.id}
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '10px 14px',
+                                background: 'rgba(255,255,255,0.03)',
+                                border: '1px solid rgba(255,255,255,0.05)',
+                                borderRadius: '10px'
+                            }}
+                        >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                                    {shortenPubkey(stake.stakeAccountPubkey)}
+                                </span>
+                                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                    {stake.amount} SOL
+                                </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div style={{
+                                    width: '7px', height: '7px', borderRadius: '50%',
+                                    backgroundColor: getStatusColor(stake.activationState)
+                                }} />
+                                <span style={{
+                                    fontSize: '0.8rem', fontWeight: 500,
+                                    color: getStatusColor(stake.activationState),
+                                    textTransform: 'capitalize'
+                                }}>
+                                    {stake.activationState || 'Unknown'}
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

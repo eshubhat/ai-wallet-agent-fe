@@ -1,137 +1,129 @@
 import { useState, useEffect } from 'react';
 import { type Transaction } from '../../services/transaction.service';
-import { History, RefreshCw, ArrowRightLeft, ArrowRight, CircleDollarSign } from 'lucide-react';
+import { History, RefreshCw, ArrowRightLeft, ArrowRight, CircleDollarSign, Receipt } from 'lucide-react';
 
 export function TransactionHistory({ transactions, loading }: { transactions: Transaction[], loading: boolean }) {
     const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
     useEffect(() => {
-        if (!loading) {
-            setLastUpdated(new Date());
-        }
+        if (!loading) setLastUpdated(new Date());
     }, [transactions, loading]);
 
-    const shortenSignature = (sig: string) => {
+    const shortenSig = (sig: string) => {
         if (!sig) return '';
-        return `${sig.slice(0, 4)}...${sig.slice(-4)}`;
+        return `${sig.slice(0, 4)}…${sig.slice(-4)}`;
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status?.toLowerCase()) {
-            case 'success':
-            case 'completed': return '#4caf50'; // Green
-            case 'pending': return '#ff9800'; // Orange
-            case 'failed': return '#f44336'; // Red
-            default: return '#9e9e9e';
-        }
+    const statusColors: Record<string, string> = {
+        success: '#10b981',
+        completed: '#10b981',
+        pending: '#f59e0b',
+        failed: '#ef4444',
     };
 
-    const getTransactionIcon = (type: string) => {
+    const getStatusColor = (s: string) => statusColors[s?.toLowerCase()] ?? '#6b7280';
+
+    const getIcon = (type: string) => {
         switch (type.toLowerCase()) {
-            case 'swap': return <ArrowRightLeft size={16} color="var(--accent-color)" />;
-            case 'stake': return <CircleDollarSign size={16} color="var(--primary)" />;
-            case 'transfer': return <ArrowRight size={16} color="#03a9f4" />;
-            default: return <History size={16} color="var(--text-secondary)" />;
+            case 'swap': return <ArrowRightLeft size={15} color="var(--accent-color)" />;
+            case 'stake': return <CircleDollarSign size={15} color="#f59e0b" />;
+            case 'transfer': return <ArrowRight size={15} color="#38bdf8" />;
+            default: return <History size={15} color="var(--text-secondary)" />;
         }
     };
-
-    if (loading && transactions.length === 0) {
-        return (
-            <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '150px' }}>
-                <RefreshCw className="spin" size={24} color="var(--accent-color)" />
-            </div>
-        );
-    }
-
-    if (transactions.length === 0) {
-        return null;
-    }
 
     return (
-        <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '1.1rem' }}>
-                    <History size={20} color="var(--accent-color)" /> Activity
+        <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+                    <History size={17} color="var(--accent-color)" /> Activity
                 </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Refreshes every 30s
-                    </span>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', opacity: 0.7 }}>
-                        Updated {lastUpdated.toLocaleTimeString()}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1px' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Auto-refresh · 30s</span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', opacity: 0.6 }}>
+                        {lastUpdated.toLocaleTimeString()}
                     </span>
                 </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {transactions.map((tx) => (
-                    <div
-                        key={tx.id}
-                        style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '12px 16px',
-                            background: 'rgba(255,255,255,0.03)',
-                            border: '1px solid rgba(255,255,255,0.05)',
-                            borderRadius: '12px'
-                        }}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '50%',
-                                background: 'rgba(0,0,0,0.2)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}>
-                                {getTransactionIcon(tx.type)}
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <span style={{ fontSize: '0.9rem', color: 'var(--text)', textTransform: 'capitalize', fontWeight: 500 }}>
-                                    {tx.type}
-                                </span>
-                                <a
-                                    href={`https://explorer.solana.com/tx/${tx.signature}?cluster=devnet`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    style={{
-                                        fontFamily: 'monospace',
-                                        fontSize: '0.75rem',
-                                        color: 'var(--accent-color)',
-                                        textDecoration: 'none'
-                                    }}
-                                >
-                                    {shortenSignature(tx.signature)}
-                                </a>
-                            </div>
-                        </div>
+            {/* Loading */}
+            {loading && transactions.length === 0 && (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem 0' }}>
+                    <RefreshCw className="spin" size={22} color="var(--accent-color)" />
+                </div>
+            )}
 
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                            <span style={{ fontSize: '0.9rem', color: 'var(--text)', fontWeight: 600 }}>
-                                {tx.amount} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{tx.token || 'SOL'}</span>
-                            </span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {/* Empty state */}
+            {!loading && transactions.length === 0 && (
+                <div className="empty-state">
+                    <Receipt size={28} className="empty-state-icon" />
+                    <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                        No transactions yet.
+                    </p>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', opacity: 0.6 }}>
+                        Try: <em>"Send 0.1 SOL to …"</em>
+                    </p>
+                </div>
+            )}
+
+            {/* Transaction list */}
+            {transactions.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {transactions.map((tx) => (
+                        <div
+                            key={tx.id}
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '10px 14px',
+                                background: 'rgba(255,255,255,0.03)',
+                                border: '1px solid rgba(255,255,255,0.05)',
+                                borderRadius: '10px'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <div style={{
-                                    width: '6px',
-                                    height: '6px',
-                                    borderRadius: '50%',
-                                    backgroundColor: getStatusColor(tx.status)
-                                }} />
-                                <span style={{
-                                    fontSize: '0.75rem',
-                                    color: getStatusColor(tx.status),
-                                    textTransform: 'capitalize'
+                                    width: '30px', height: '30px', borderRadius: '50%',
+                                    background: 'rgba(0,0,0,0.25)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
                                 }}>
-                                    {tx.status}
+                                    {getIcon(tx.type)}
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <span style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--text-primary)', textTransform: 'capitalize' }}>
+                                        {tx.type}
+                                    </span>
+                                    <a
+                                        href={`https://explorer.solana.com/tx/${tx.signature}?cluster=devnet`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: 'var(--accent-color)', textDecoration: 'none' }}
+                                    >
+                                        {shortenSig(tx.signature)}
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                                <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                    {tx.amount} <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{tx.token || 'SOL'}</span>
                                 </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <div style={{
+                                        width: '6px', height: '6px', borderRadius: '50%',
+                                        backgroundColor: getStatusColor(tx.status)
+                                    }} />
+                                    <span style={{ fontSize: '0.72rem', color: getStatusColor(tx.status), textTransform: 'capitalize' }}>
+                                        {tx.status}
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

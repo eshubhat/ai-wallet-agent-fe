@@ -72,7 +72,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     return (
         <div style={{
             position: 'fixed', top: 250, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
+            backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)',
             display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
         }}>
             <div className="glass-panel" style={{
@@ -156,13 +156,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             placeholder={`Leave blank to use default server key`}
                             value={apiKeys[provider] || ''}
                             onChange={(e) => setApiKeys(prev => ({ ...prev, [provider]: e.target.value }))}
-                            style={{
-                                padding: '10px',
-                                borderRadius: '8px',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                background: 'rgba(0,0,0,0.2)',
-                                color: 'white'
-                            }}
+                            className="setting-input"
                         />
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', opacity: 0.8 }}>
                             Keys are saved only in your local browser and never sent to our database.
@@ -184,12 +178,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         </button>
                         <button
                             onClick={handleSave}
-                            className="pulse-effect"
                             style={{
                                 flex: 2, padding: '12px', borderRadius: '8px', border: 'none',
-                                background: 'var(--primary)', color: 'white', fontWeight: 'bold', cursor: 'pointer',
-                                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px'
+                                background: 'var(--accent-color)', color: 'white', fontWeight: 'bold', cursor: 'pointer',
+                                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px',
+                                transition: 'all 0.2s ease'
                             }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-hover)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'var(--accent-color)')}
                         >
                             <Save size={18} /> Save Settings
                         </button>

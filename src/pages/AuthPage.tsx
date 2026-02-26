@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/auth.service';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, Eye, EyeOff, Zap, Repeat, TrendingUp } from 'lucide-react';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 
 export const AuthPage = () => {
@@ -12,6 +12,7 @@ export const AuthPage = () => {
     const [mode, setMode] = useState<'signin' | 'signup'>('signin');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [name, setName] = useState('');
     const [walletAddress, setWalletAddress] = useState('');
     const [error, setError] = useState('');
@@ -30,7 +31,6 @@ export const AuthPage = () => {
                 const res = await authService.signin({ email, password });
                 login(res.user, res.token);
             }
-            // Navigate to Dashboard upon success
             navigate('/');
         } catch (err: any) {
             setError(err.response?.data?.error || 'Authentication failed. Please try again.');
@@ -38,6 +38,12 @@ export const AuthPage = () => {
             setIsSubmitting(false);
         }
     };
+
+    const features = [
+        { icon: <Zap size={14} />, label: 'AI-powered transfers' },
+        { icon: <Repeat size={14} />, label: 'Token swaps via Jupiter' },
+        { icon: <TrendingUp size={14} />, label: 'SOL staking rewards' },
+    ];
 
     return (
         <div style={{
@@ -50,81 +56,82 @@ export const AuthPage = () => {
             position: 'relative',
             overflow: 'hidden'
         }}>
-            {/* Animated Glow Background Effects */}
+            {/* Animated Glow Background */}
             <div style={{
-                position: 'absolute',
-                top: '-10%',
-                left: '-10%',
-                width: '50vw',
-                height: '50vw',
+                position: 'absolute', top: '-10%', left: '-10%',
+                width: '50vw', height: '50vw',
                 background: 'radial-gradient(circle, rgba(123, 66, 246, 0.15) 0%, transparent 60%)',
-                filter: 'blur(60px)',
-                zIndex: 0
+                filter: 'blur(60px)', zIndex: 0
             }} />
             <div style={{
-                position: 'absolute',
-                bottom: '-10%',
-                right: '-10%',
-                width: '50vw',
-                height: '50vw',
+                position: 'absolute', bottom: '-10%', right: '-10%',
+                width: '50vw', height: '50vw',
                 background: 'radial-gradient(circle, rgba(45, 212, 191, 0.1) 0%, transparent 60%)',
-                filter: 'blur(60px)',
-                zIndex: 0
+                filter: 'blur(60px)', zIndex: 0
             }} />
 
             <div className="glass-panel" style={{
                 width: '100%',
-                maxWidth: '480px',
-                padding: '3rem 2.5rem',
+                maxWidth: '460px',
+                padding: '2.75rem 2.5rem',
                 position: 'relative',
                 zIndex: 1,
                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '2rem'
+                gap: '1.75rem'
             }}>
-                {/* Header Back Button */}
+                {/* Back Button */}
                 <button
                     onClick={() => navigate('/')}
-                    style={{
-                        position: 'absolute',
-                        top: '1.5rem',
-                        left: '1.5rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.9rem',
-                        fontWeight: '500'
-                    }}
+                    className="btn-ghost"
+                    style={{ position: 'absolute', top: '1.25rem', left: '1.25rem' }}
                 >
-                    <ArrowLeft size={16} /> Back
+                    <ArrowLeft size={15} /> Back
                 </button>
 
-                <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-                    <h1 style={{
-                        fontSize: '2.5rem',
-                        marginBottom: '0.5rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '12px'
+                {/* Header */}
+                <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                    {/* Solana badge */}
+                    <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        padding: '4px 12px', borderRadius: '999px',
+                        background: 'rgba(153, 69, 255, 0.1)',
+                        border: '1px solid rgba(153, 69, 255, 0.25)',
+                        color: '#c084fc', fontSize: '0.75rem', fontWeight: 600,
+                        marginBottom: '1rem', letterSpacing: '0.04em'
                     }}>
+                        <Sparkles size={11} /> POWERED BY SOLANA
+                    </div>
+
+                    <h1 style={{ fontSize: '2.2rem', marginBottom: '0.4rem' }}>
                         AgentWallet<span style={{ color: 'var(--accent-color)' }}>.AI</span>
                     </h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
-                        {mode === 'signin' ? 'Welcome back, commander.' : 'Initialize your agent instance.'}
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>
+                        {mode === 'signin' ? 'Welcome back! Sign in to continue.' : 'Create your account to get started.'}
                     </p>
+
+                    {/* Feature pills — only shown on signup */}
+                    {mode === 'signup' && (
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '1rem' }}>
+                            {features.map((f, i) => (
+                                <span key={i} className="tag tag-neutral" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                    {f.icon} {f.label}
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
+                {/* Error */}
                 {error && (
                     <div style={{
                         background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
                         color: '#ef4444',
-                        padding: '12px 16px',
-                        borderRadius: '12px',
-                        fontSize: '0.95rem',
+                        padding: '11px 15px',
+                        borderRadius: '10px',
+                        fontSize: '0.9rem',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px'
@@ -133,133 +140,102 @@ export const AuthPage = () => {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+                    {/* Signup-only fields */}
                     {mode === 'signup' && (
-                        <div style={{ display: 'flex', gap: '1rem' }}>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Name (Optional)</label>
+                        <>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '7px', fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                                    Name <span style={{ opacity: 0.5 }}>(Optional)</span>
+                                </label>
                                 <input
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     className="setting-input"
-                                    placeholder="Your Name"
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px 16px',
-                                        background: 'rgba(0,0,0,0.3)',
-                                        border: '1px solid rgba(255,255,255,0.05)',
-                                        borderRadius: '12px',
-                                        color: 'white',
-                                        transition: 'all 0.2s ease'
-                                    }}
+                                    placeholder="Your full name"
                                 />
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Wallet (Optional)</label>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '7px', fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                                    Wallet Address <span style={{ opacity: 0.5 }}>(Optional)</span>
+                                </label>
                                 <input
                                     type="text"
                                     value={walletAddress}
                                     onChange={(e) => setWalletAddress(e.target.value)}
                                     className="setting-input"
                                     placeholder="e.g. 7AETLyAG..."
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px 16px',
-                                        background: 'rgba(0,0,0,0.3)',
-                                        border: '1px solid rgba(255,255,255,0.05)',
-                                        borderRadius: '12px',
-                                        color: 'white',
-                                        transition: 'all 0.2s ease'
-                                    }}
                                 />
                             </div>
-                        </div>
+                        </>
                     )}
 
+                    {/* Email */}
                     <div>
-                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Email Address</label>
+                        <label style={{ display: 'block', marginBottom: '7px', fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                            Email Address
+                        </label>
                         <input
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
                             placeholder="you@example.com"
-                            style={{
-                                width: '100%',
-                                padding: '14px 16px',
-                                background: 'rgba(0,0,0,0.3)',
-                                border: '1px solid rgba(255,255,255,0.05)',
-                                borderRadius: '12px',
-                                color: 'white',
-                                transition: 'all 0.2s ease',
-                                outline: 'none'
-                            }}
-                            onFocus={(e) => e.target.style.borderColor = 'var(--accent-color)'}
-                            onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.05)'}
+                            className="setting-input"
                         />
                     </div>
 
+                    {/* Password with show/hide */}
                     <div>
-                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            placeholder="••••••••"
-                            style={{
-                                width: '100%',
-                                padding: '14px 16px',
-                                background: 'rgba(0,0,0,0.3)',
-                                border: '1px solid rgba(255,255,255,0.05)',
-                                borderRadius: '12px',
-                                color: 'white',
-                                transition: 'all 0.2s ease',
-                                outline: 'none'
-                            }}
-                            onFocus={(e) => e.target.style.borderColor = 'var(--accent-color)'}
-                            onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.05)'}
-                        />
+                        <label style={{ display: 'block', marginBottom: '7px', fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                            Password
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                placeholder="••••••••"
+                                className="setting-input"
+                                style={{ paddingRight: '44px' }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(v => !v)}
+                                style={{
+                                    position: 'absolute', right: '12px', top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    color: 'var(--text-secondary)',
+                                    background: 'none', border: 'none', cursor: 'pointer',
+                                    padding: '4px', display: 'flex', alignItems: 'center'
+                                }}
+                            >
+                                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                            </button>
+                        </div>
                     </div>
 
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        style={{
-                            width: '100%',
-                            padding: '16px',
-                            background: 'var(--accent-color)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '12px',
-                            fontWeight: '600',
-                            fontSize: '1.05rem',
-                            cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                            opacity: isSubmitting ? 0.7 : 1,
-                            marginTop: '0.5rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            boxShadow: '0 4px 15px rgba(123, 66, 246, 0.3)',
-                            transition: 'all 0.2s ease'
-                        }}
-                        onMouseOver={(e) => { if (!isSubmitting) e.currentTarget.style.transform = 'translateY(-2px)' }}
-                        onMouseOut={(e) => { if (!isSubmitting) e.currentTarget.style.transform = 'none' }}
+                        className="btn-primary"
+                        style={{ width: '100%', padding: '15px', marginTop: '0.4rem', fontSize: '1rem' }}
                     >
-                        {isSubmitting ? 'Authenticating...' : (
+                        {isSubmitting ? 'Please wait…' : (
                             <>
-                                {mode === 'signin' ? 'Access Console' : 'Initialize Agent'}
-                                <Sparkles size={18} />
+                                {mode === 'signin' ? 'Sign In' : 'Create Account'}
+                                <Sparkles size={16} />
                             </>
                         )}
                     </button>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '0.5rem 0' }}>
-                        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>OR</span>
-                        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                    {/* Divider */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>OR</span>
+                        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -274,14 +250,12 @@ export const AuthPage = () => {
                                         navigate('/');
                                     }
                                 } catch (err: any) {
-                                    setError(err.response?.data?.error || 'Google Authentication failed. Please try again.');
+                                    setError(err.response?.data?.error || 'Google sign-in failed. Please try again.');
                                 } finally {
                                     setIsSubmitting(false);
                                 }
                             }}
-                            onError={() => {
-                                setError('Google Login Failed');
-                            }}
+                            onError={() => setError('Google sign-in failed.')}
                             theme="filled_black"
                             width="100%"
                             size="large"
@@ -290,23 +264,18 @@ export const AuthPage = () => {
                     </div>
                 </form>
 
-                <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                    {mode === 'signin' ? "Need clearance? " : "Already initialized? "}
+                {/* Switch mode */}
+                <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
+                    {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
                     <button
-                        onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
+                        onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); }}
                         style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--text-primary)',
-                            cursor: 'pointer',
-                            padding: 0,
-                            fontWeight: '600',
-                            transition: 'color 0.2s ease'
+                            background: 'none', border: 'none',
+                            color: 'var(--accent-color)', cursor: 'pointer',
+                            fontWeight: 600, fontSize: '0.92rem'
                         }}
-                        onMouseOver={(e) => e.currentTarget.style.color = 'var(--accent-color)'}
-                        onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
                     >
-                        {mode === 'signin' ? 'Request Access' : 'Sign In'}
+                        {mode === 'signin' ? 'Sign Up' : 'Sign In'}
                     </button>
                 </div>
             </div>
