@@ -241,6 +241,66 @@ export function useAgent() {
         return false;
     };
 
+    // ─── Pre-flight security checks ───────────────────────────────────────────
+    /**
+     * Validates a proposed action BEFORE executing it on-chain.
+     * Returns `{ ok: true }` when safe to proceed, or `{ ok: false, reason }` with
+     * a user-facing message that should be displayed.
+     */
+    const preFlight = async (opts: {
+        amountSol?: number;        // SOL being spent (transfer amount, stake amount, swap source if SOL)
+        recipient?: string;        // recipient pubkey string to validate
+        actionLabel: string;       // e.g. "transfer 5 SOL", "stake 2 SOL"
+        feeReserveSol?: number;    // extra SOL to reserve for fees (default 0.005)
+    }): Promise<{ ok: true } | { ok: false; reason: string }> => {
+        const FEE_RESERVE = opts.feeReserveSol ?? 0.005;
+
+        // 1. Amount must be positive
+        if (opts.amountSol !== undefined) {
+            if (isNaN(opts.amountSol) || opts.amountSol <= 0) {
+                return { ok: false, reason: `❌ The amount must be a positive number. You asked to ${opts.actionLabel} — please provide a valid amount.` };
+            }
+        }
+
+        // 2. Recipient address must be a valid Solana public key
+        if (opts.recipient) {
+            try {
+                new PublicKey(opts.recipient);
+            } catch {
+                return {
+                    ok: false,
+                    reason: `❌ The recipient address **${opts.recipient.slice(0, 12)}…** doesn't look like a valid Solana wallet address. Please double-check and try again.`
+                };
+            }
+        }
+
+        // 3. Check live on-chain balance for SOL-spending actions
+        if (opts.amountSol !== undefined && publicKey) {
+            let balance: number;
+            try {
+                balance = await solanaService.getBalance(connection, publicKey);
+            } catch (e: any) {
+                return { ok: false, reason: `❌ Could not fetch your wallet balance right now: ${e.message}. Please try again.` };
+            }
+
+            const required = opts.amountSol + FEE_RESERVE;
+            if (balance < required) {
+                const short = (required - balance).toFixed(4);
+                return {
+                    ok: false,
+                    reason:
+                        `❌ Insufficient balance to ${opts.actionLabel}.\n\n` +
+                        `• **Your balance:** ${balance.toFixed(4)} SOL\n` +
+                        `• **Required:** ${opts.amountSol} SOL + ~${FEE_RESERVE} SOL fee = ${required.toFixed(4)} SOL\n` +
+                        `• **Short by:** ${short} SOL\n\n` +
+                        `Please top up your wallet or reduce the amount.`
+                };
+            }
+        }
+
+        return { ok: true };
+    };
+
     // ─── Main intent processor ────────────────────────────────────────────────
     const processIntent = async (text: string) => {
         if (!text.trim()) return;
@@ -333,6 +393,18 @@ export function useAgent() {
                         continue;
                     }
 
+                    // Pre-flight: check balance before even asking about validator
+                    // Staking requires rent exemption (~0.002 SOL) on top of the staked amount + fees
+                    const stakeCheck = await preFlight({
+                        amountSol: action.amount,
+                        actionLabel: `stake ${action.amount} SOL`,
+                        feeReserveSol: 0.01,   // rent exemption + tx fee
+                    });
+                    if (!stakeCheck.ok) {
+                        addMessage('agent', stakeCheck.reason, { parsedIntent: intent });
+                        continue;
+                    }
+
                     // Kick off the multi-turn conversation
                     pendingStakeRef.current = {
                         step: 'ask_validator_mode',
@@ -359,6 +431,18 @@ export function useAgent() {
                         addMessage('agent', "I need an amount and a destination address to transfer.", { parsedIntent: intent });
                         continue;
                     }
+
+                    // Pre-flight: validate address + check balance
+                    const txCheck = await preFlight({
+                        amountSol: action.amount,
+                        recipient: action.recipient,
+                        actionLabel: `transfer ${action.amount} SOL`,
+                    });
+                    if (!txCheck.ok) {
+                        addMessage('agent', txCheck.reason, { parsedIntent: intent });
+                        continue;
+                    }
+
                     try {
                         transaction = await solanaService.createTransferTransaction(
                             connection,
@@ -366,7 +450,7 @@ export function useAgent() {
                             new PublicKey(action.recipient),
                             action.amount
                         );
-                        replyMsg = `Sending ${action.amount} SOL to ${action.recipient.slice(0, 8)}…`;
+                        replyMsg = `⏳ Sending **${action.amount} SOL** to \`${action.recipient.slice(0, 8)}…\`\nPlease approve in your wallet.`;
                     } catch (e: any) {
                         addMessage('agent', `❌ Invalid transfer parameters: ${e.message}`);
                         continue;
@@ -388,6 +472,18 @@ export function useAgent() {
                         continue;
                     }
 
+                    // Pre-flight: if swapping FROM SOL, check SOL balance
+                    if (action.sourceToken.toUpperCase() === 'SOL') {
+                        const swapCheck = await preFlight({
+                            amountSol: action.amount,
+                            actionLabel: `swap ${action.amount} SOL → ${action.destinationToken.toUpperCase()}`,
+                        });
+                        if (!swapCheck.ok) {
+                            addMessage('agent', swapCheck.reason, { parsedIntent: intent });
+                            continue;
+                        }
+                    }
+
                     try {
                         const sourceDecimals = action.sourceToken.toUpperCase() === 'SOL' ? 9 : 6;
                         const amountLamports = Math.floor(action.amount * (10 ** sourceDecimals));
@@ -396,7 +492,7 @@ export function useAgent() {
                         const destDecimals = action.destinationToken.toUpperCase() === 'SOL' ? 9 : 6;
                         const outAmountHuman = parseInt(quoteInfo.outAmount) / (10 ** destDecimals);
 
-                        replyMsg = `Found a route! Swapping ${action.amount} ${action.sourceToken.toUpperCase()} → ~${outAmountHuman.toFixed(4)} ${action.destinationToken.toUpperCase()} via Jupiter…`;
+                        replyMsg = `⏳ Swapping **${action.amount} ${action.sourceToken.toUpperCase()}** → ~**${outAmountHuman.toFixed(4)} ${action.destinationToken.toUpperCase()}** via Jupiter…\nPlease approve in your wallet.`;
 
                         const { swapTransaction } = await jupiterService.getSwapTransaction(quoteInfo, publicKey.toString());
                         transaction = jupiterService.deserializeTransaction(swapTransaction);
