@@ -1,13 +1,7 @@
-import { useState, useEffect } from 'react';
 import { type Transaction } from '../../services/transaction.service';
 import { History, RefreshCw, ArrowRightLeft, ArrowRight, CircleDollarSign, Receipt } from 'lucide-react';
 
 export function TransactionHistory({ transactions, loading }: { transactions: Transaction[], loading: boolean }) {
-    const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-
-    useEffect(() => {
-        if (!loading) setLastUpdated(new Date());
-    }, [transactions, loading]);
 
     const shortenSig = (sig: string) => {
         if (!sig) return '';
@@ -39,12 +33,6 @@ export function TransactionHistory({ transactions, loading }: { transactions: Tr
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '1rem', fontWeight: 600 }}>
                     <History size={17} color="var(--accent-color)" /> Activity
                 </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1px' }}>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Auto-refresh · 30s</span>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', opacity: 0.6 }}>
-                        {lastUpdated.toLocaleTimeString()}
-                    </span>
-                </div>
             </div>
 
             {/* Loading */}

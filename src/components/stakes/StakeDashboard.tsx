@@ -3,11 +3,11 @@ import { type StakeAccount } from '../../services/stake.service';
 import { Activity, RefreshCw, Layers } from 'lucide-react';
 
 export function StakeDashboard({ stakes, loading }: { stakes: StakeAccount[], loading: boolean }) {
-    const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+    // const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-    useEffect(() => {
-        if (!loading) setLastUpdated(new Date());
-    }, [stakes, loading]);
+    // useEffect(() => {
+    //     if (!loading) setLastUpdated(new Date());
+    // }, [stakes, loading]);
 
     const shortenPubkey = (key: string) => {
         if (!key) return '';
@@ -31,12 +31,6 @@ export function StakeDashboard({ stakes, loading }: { stakes: StakeAccount[], lo
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '1rem', fontWeight: 600 }}>
                     <Activity size={17} color="var(--accent-color)" /> Active Stakes
                 </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1px' }}>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Auto-refresh · 30s</span>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', opacity: 0.6 }}>
-                        {lastUpdated.toLocaleTimeString()}
-                    </span>
-                </div>
             </div>
 
             {/* Loading spinner */}
