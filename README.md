@@ -1,75 +1,53 @@
-# React + TypeScript + Vite
+# Solana AI Agent Wallet - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the frontend component of the Solana AI Agent Wallet, a React + Vite Single Page Application (SPA). It provides the user interface for interacting with the AI agent, viewing wallet balances, managing scheduled tasks, and signing transactions locally.
 
-Currently, two official plugins are available:
+## ✨ Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Chat Interface:** Chat with your AI agent to execute Solana transactions via natural language.
+- **Self-Custody Design:** The UI integrates `@solana/wallet-adapter-react` to let you sign transactions locally. Your private keys never touch the backend.
+- **Dashboard & Panels:** Real-time views of your wallet's active Stake Accounts, recent transactions, and Pending Scheduled Tasks.
+- **Live SSE Notifications:** Immediate toast banners when scheduled tasks (time, price, or idle-based) are triggered by the backend, prompting you to "Execute Now".
+- **Responsive Design:** Clean, modern UI built with custom CSS and Lucide React icons.
 
-## React Compiler
+## 🚀 Getting Started
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+### Prerequisites
+- Node.js (v20.x or newer)
+- [pnpm](https://pnpm.io/)
+- A Solana Wallet Extension (e.g., [Phantom](https://phantom.app/)), set to **Devnet**.
 
-Note: This will impact Vite dev & build performances.
+### Installation
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1. Install all dependencies:
+```bash
+pnpm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+2. Environment Configuration:
+Copy the example environment file:
+```bash
+cp .env.example .env
 ```
+Ensure your `.env` has the following variables set:
+```env
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
+VITE_BACKEND_URL=http://localhost:3000
+```
+*(Get a free Gemini API key from [Google AI Studio](https://aistudio.google.com/)).*
+
+### Running the App
+
+Start the Vite development server:
+```bash
+pnpm run dev
+```
+
+Open your browser to [http://localhost:5173](http://localhost:5173) to view the application.
+
+## 📁 Key Directories
+
+- `src/components/chat`: Contains the ChatInterface, MessageBubbles, and ChatInput.
+- `src/components/scheduler`: Contains the live NotificationBanner and ScheduledTasksPanel.
+- `src/hooks`: Custom React hooks, notably `useAgent.ts` which handles the NLP orchestration and `useSSE.ts` for live backend events.
+- `src/services`: API wrappers to communicate with the backend (`ai.service.ts`, `scheduler.service.ts`) and Solana RPCs (`solana.service.ts`, `jupiter.service.ts`).
