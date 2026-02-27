@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import dns from 'dns'
 import pkg from './package.json'
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 // Fix Node.js ENOTFOUND proxy errors (forces IPv4 DNS resolution over IPv6)
 dns.setDefaultResultOrder('ipv4first')
 
@@ -11,13 +13,11 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
-  plugins: [
-    react({
-      babel: {
-        plugins: [['babel-plugin-react-compiler']],
-      },
-    }),
-  ],
+  plugins: [react({
+    babel: {
+      plugins: [['babel-plugin-react-compiler']],
+    },
+  }), cloudflare()],
   server: {
     proxy: {
       '/jup-api': {
