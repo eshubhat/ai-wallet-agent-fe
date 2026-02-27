@@ -1,12 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import dns from 'dns'
+import pkg from './package.json'
 
 // Fix Node.js ENOTFOUND proxy errors (forces IPv4 DNS resolution over IPv6)
 dns.setDefaultResultOrder('ipv4first')
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react({
       babel: {

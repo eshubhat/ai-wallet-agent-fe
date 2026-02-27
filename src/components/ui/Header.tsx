@@ -53,9 +53,21 @@ export const Header = () => {
                 }}>
                     <Bot size={18} color="#fff" />
                 </div>
-                <h2 style={{ fontSize: '1.2rem', letterSpacing: '-0.01em' }}>
-                    AgentWallet<span style={{ color: 'var(--accent-color)' }}>.AI</span>
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <h2 style={{ fontSize: '1.2rem', letterSpacing: '-0.01em', margin: 0 }}>
+                        AgentWallet<span style={{ color: 'var(--accent-color)' }}>.AI</span>
+                    </h2>
+                    <span style={{
+                        fontSize: '0.65rem',
+                        padding: '2px 6px',
+                        borderRadius: '12px',
+                        background: 'var(--accent-color)',
+                        color: 'white',
+                        fontWeight: 600
+                    }}>
+                        v{__APP_VERSION__}
+                    </span>
+                </div>
             </div>
 
             {/* Right side actions */}
