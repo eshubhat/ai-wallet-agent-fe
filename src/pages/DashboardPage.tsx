@@ -1,16 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
-import { ChatInterface } from '../components/chat/ChatInterface';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Header } from '../components/ui/Header';
-import { StakeDashboard } from '../components/stakes/StakeDashboard';
-import { TransactionHistory } from '../components/transactions/TransactionHistory';
 import { useAuth } from '../contexts/AuthContext';
 import { stakeService, type StakeAccount } from '../services/stake.service';
 import { transactionService, type Transaction } from '../services/transaction.service';
 import { useSSE } from '../hooks/useSSE';
 import { useScheduledTasks } from '../hooks/useScheduledTasks';
-import { ScheduledTasksPanel } from '../components/scheduler/ScheduledTasksPanel';
 import { NotificationBanner } from '../components/scheduler/NotificationBanner';
 import { type ScheduledTask } from '../types';
+
+// Dynamically import heavy nested components
+const ChatInterface = lazy(() => import('../components/chat/ChatInterface').then(module => ({ default: module.ChatInterface })));
+const StakeDashboard = lazy(() => import('../components/stakes/StakeDashboard').then(module => ({ default: module.StakeDashboard })));
+const TransactionHistory = lazy(() => import('../components/transactions/TransactionHistory').then(module => ({ default: module.TransactionHistory })));
+const ScheduledTasksPanel = lazy(() => import('../components/scheduler/ScheduledTasksPanel').then(module => ({ default: module.ScheduledTasksPanel })));
 
 export const DashboardPage = () => {
     const { user } = useAuth();
@@ -104,7 +106,9 @@ export const DashboardPage = () => {
                             />
                         </div>
                     )}
-                    <ChatInterface />
+                    <Suspense fallback={<div className="loading-spinner" style={{ margin: 'auto' }} />}>
+                        <ChatInterface />
+                    </Suspense>
                 </div>
 
                 {/* Sidebar — always shown when logged in */}
@@ -119,14 +123,16 @@ export const DashboardPage = () => {
                         gap: '16px',
                         paddingRight: '4px'
                     }}>
-                        <ScheduledTasksPanel
-                            tasks={scheduledTasks}
-                            loading={loading}
-                            onCancel={cancelTask}
-                            onExecuteFromBanner={handleExecuteTriggeredTask}
-                        />
-                        <StakeDashboard stakes={stakes} loading={loading} />
-                        <TransactionHistory transactions={transactions} loading={loading} />
+                        <Suspense fallback={<div className="loading-spinner" style={{ margin: 'auto' }} />}>
+                            <ScheduledTasksPanel
+                                tasks={scheduledTasks}
+                                loading={loading}
+                                onCancel={cancelTask}
+                                onExecuteFromBanner={handleExecuteTriggeredTask}
+                            />
+                            <StakeDashboard stakes={stakes} loading={loading} />
+                            <TransactionHistory transactions={transactions} loading={loading} />
+                        </Suspense>
                     </div>
                 )}
             </main>

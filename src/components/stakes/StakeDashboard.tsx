@@ -1,13 +1,7 @@
-import { useState, useEffect } from 'react';
 import { type StakeAccount } from '../../services/stake.service';
 import { Activity, RefreshCw, Layers } from 'lucide-react';
 
 export function StakeDashboard({ stakes, loading }: { stakes: StakeAccount[], loading: boolean }) {
-    // const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-
-    // useEffect(() => {
-    //     if (!loading) setLastUpdated(new Date());
-    // }, [stakes, loading]);
 
     const shortenPubkey = (key: string) => {
         if (!key) return '';
