@@ -20,6 +20,28 @@ export function ChatInterface() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isProcessing]);
 
+    useEffect(() => {
+        const handleCommand = (e: Event) => {
+            const customEvent = e as CustomEvent<string>;
+            processIntent(customEvent.detail);
+        };
+        const handleDirectExecute = (e: Event) => {
+            const customEvent = e as CustomEvent<any>;
+            // We'll add this to useAgent next
+            if ((window as any)._executeDirectAction) {
+                (window as any)._executeDirectAction(customEvent.detail);
+            }
+        };
+
+        window.addEventListener('ai_agent_command', handleCommand);
+        window.addEventListener('ai_direct_execute', handleDirectExecute);
+
+        return () => {
+            window.removeEventListener('ai_agent_command', handleCommand);
+            window.removeEventListener('ai_direct_execute', handleDirectExecute);
+        };
+    }, [processIntent]);
+
     const handleChipClick = (prompt: string) => {
         // If the prompt ends with a space it means user needs to fill in recipient — prefill only
         if (prompt.endsWith(' ')) {

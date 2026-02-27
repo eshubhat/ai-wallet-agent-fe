@@ -1,5 +1,13 @@
 export type IntentType = 'transfer' | 'swap' | 'balance' | 'stake' | 'unknown';
 
+export interface ScheduleDetails {
+    type: 'time' | 'price_gte' | 'price_lte' | 'idle';
+    isoDate?: string;
+    token?: string;
+    priceUsd?: number;
+    hours?: number;
+}
+
 export interface ParsedAction {
     type: IntentType;
     amount?: number;
@@ -9,6 +17,7 @@ export interface ParsedAction {
     destinationToken?: string;
     recipient?: string;
     message?: string;
+    schedule?: ScheduleDetails;
 }
 
 export interface ParsedIntent {
@@ -31,4 +40,19 @@ export interface AgentMessage {
     parsedIntent?: ParsedIntent;
     simulateResult?: SimulationResult;
     timestamp: number;
+}
+
+export interface ScheduledTask {
+    id: string;
+    userId: string;
+    status: 'pending' | 'triggered' | 'dismissed' | 'cancelled';
+    actionType: string;
+    actionPayload: any;
+    triggerType: string;
+    triggerAt?: string;
+    triggerPrice?: number;
+    triggerToken?: string;
+    idleHours?: number;
+    label: string;
+    createdAt: string;
 }

@@ -7,6 +7,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { stakeService, type StakeAccount } from '../services/stake.service';
 import { transactionService, type Transaction } from '../services/transaction.service';
 import { useSSE } from '../hooks/useSSE';
+import { useScheduledTasks } from '../hooks/useScheduledTasks';
+import { ScheduledTasksPanel } from '../components/scheduler/ScheduledTasksPanel';
+import { NotificationBanner } from '../components/scheduler/NotificationBanner';
+import { type ScheduledTask } from '../types';
 
 export const DashboardPage = () => {
     const { user } = useAuth();
@@ -62,6 +66,15 @@ export const DashboardPage = () => {
         },
     });
 
+    // ── Scheduled Tasks ──────────────────────────────────────────────────────
+    const { tasks: scheduledTasks, triggeredTask, cancelTask, dismissTask } = useScheduledTasks();
+
+    const handleExecuteTriggeredTask = (task: ScheduledTask) => {
+        // Dispatch a custom event to execute the stored payload directly
+        window.dispatchEvent(new CustomEvent('ai_direct_execute', { detail: task }));
+        dismissTask(task.id);
+    };
+
     return (
         <>
             <Header />
@@ -81,7 +94,16 @@ export const DashboardPage = () => {
                 }}
             >
                 {/* Chat — grows to fill available space */}
-                <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                    {triggeredTask && (
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, padding: '0 16px' }}>
+                            <NotificationBanner
+                                task={triggeredTask}
+                                onDismiss={dismissTask}
+                                onExecute={handleExecuteTriggeredTask}
+                            />
+                        </div>
+                    )}
                     <ChatInterface />
                 </div>
 
@@ -97,6 +119,12 @@ export const DashboardPage = () => {
                         gap: '16px',
                         paddingRight: '4px'
                     }}>
+                        <ScheduledTasksPanel
+                            tasks={scheduledTasks}
+                            loading={loading}
+                            onCancel={cancelTask}
+                            onExecuteFromBanner={handleExecuteTriggeredTask}
+                        />
                         <StakeDashboard stakes={stakes} loading={loading} />
                         <TransactionHistory transactions={transactions} loading={loading} />
                     </div>

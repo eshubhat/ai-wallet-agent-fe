@@ -10,6 +10,7 @@ import { useSolana } from './useSolana';
 import { useAuth } from '../contexts/AuthContext';
 import { PublicKey, VersionedTransaction } from '@solana/web3.js';
 import { resolveMentions } from '../utils/resolveMentions';
+import { schedulerService } from '../services/scheduler.service';
 
 const TOKENS: Record<string, string> = {
     SOL: 'So11111111111111111111111111111111111111112',
@@ -25,7 +26,6 @@ const DEFAULT_MESSAGE: AgentMessage = {
     timestamp: Date.now()
 };
 
-// ─── Staking conversation state ──────────────────────────────────────────────
 type StakeStep = 'ask_validator_mode'   // waiting for: "auto" or "custom"
     | 'ask_validator_key';   // waiting for the validator address
 
@@ -35,7 +35,6 @@ interface PendingStake {
     validatorKey?: string;   // filled in after user provides custom key
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 function looksLikeAutoChoice(text: string): boolean {
     const t = text.toLowerCase().trim();
     return (
@@ -62,7 +61,6 @@ function looksLikeSolanaAddress(text: string): boolean {
     return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(text.trim());
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function useAgent() {
     const { user } = useAuth();
@@ -176,14 +174,13 @@ export function useAgent() {
         }
     };
 
-    // ─── Handle staking conversation turns ───────────────────────────────────
     const handleStakingConversation = async (userText: string): Promise<boolean> => {
         const pending = pendingStakeRef.current;
         if (!pending) return false;   // not in a staking conversation
 
         const trimmed = userText.trim();
 
-        // ── Step 1: waiting for "auto" or "custom" ──
+        // Step 1: waiting for "auto" or "custom"
         if (pending.step === 'ask_validator_mode') {
             if (looksLikeAutoChoice(trimmed)) {
                 // User wants automatic selection
@@ -205,7 +202,7 @@ export function useAgent() {
                 return true;
             }
 
-            // Ambiguous — re-prompt
+            // Ambiguous - re-prompt
             addMessage('agent',
                 `I didn't quite catch that. Please reply:\n` +
                 `• **"auto"** — I'll pick a reliable validator for you\n` +
@@ -214,7 +211,7 @@ export function useAgent() {
             return true;
         }
 
-        // ── Step 2: waiting for the validator address ──
+        // Step 2: waiting for the validator address
         if (pending.step === 'ask_validator_key') {
             if (looksLikeSolanaAddress(trimmed)) {
                 pendingStakeRef.current = null;
@@ -241,7 +238,7 @@ export function useAgent() {
         return false;
     };
 
-    // ─── Pre-flight security checks ───────────────────────────────────────────
+    // Pre-flight security checks 
     /**
      * Validates a proposed action BEFORE executing it on-chain.
      * Returns `{ ok: true }` when safe to proceed, or `{ ok: false, reason }` with
@@ -327,202 +324,7 @@ export function useAgent() {
             }
 
             for (const action of intent.actions) {
-                let replyContent = '';
-
-                if (action.type === 'unknown') {
-                    replyContent = action.message || intent.rawResponse || "I couldn't understand that request. Could you rephrase it?";
-                    if (replyContent.includes('{"actions"')) {
-                        replyContent = "I couldn't understand that request. Could you rephrase it?";
-                    }
-                    addMessage('agent', replyContent, { parsedIntent: intent });
-                    continue;
-                }
-
-                if (action.type === 'balance') {
-                    if (!publicKey) {
-                        addMessage('agent', "Please connect your Solana wallet so I can check your balance.", { parsedIntent: intent });
-                        continue;
-                    }
-                    try {
-                        const bal = await solanaService.getBalance(connection, publicKey);
-                        addMessage('agent', `Your current balance is **${bal} SOL**.`, { parsedIntent: intent });
-                        refreshBalance();
-                    } catch (e: any) {
-                        addMessage('agent', `❌ Failed to get balance: ${e.message}`, { parsedIntent: intent });
-                    }
-                    continue;
-                }
-
-                if (!publicKey) {
-                    addMessage('agent', "Please connect your Solana wallet first to perform transactions.", { parsedIntent: intent });
-                    break;
-                }
-
-                // ── Max amount calculation ──
-                if (action.useMax) {
-                    try {
-                        const isSolSource =
-                            (action.type === 'swap' && action.sourceToken?.toUpperCase() === 'SOL') ||
-                            ((action.type === 'transfer' || action.type === 'stake') && action.token?.toUpperCase() === 'SOL');
-
-                        if (isSolSource) {
-                            const available = await solanaService.getBalance(connection, publicKey);
-                            const amountToUse = available - 0.005;
-
-                            if (amountToUse <= 0) {
-                                addMessage('agent', `Your balance (${available} SOL) is too low after reserving fees.`, { parsedIntent: intent });
-                                continue;
-                            }
-
-                            action.amount = Math.floor(amountToUse * 10000) / 10000;
-                            addMessage('agent', `Auto-calculated amount: ${action.amount} SOL (reserved 0.005 SOL for fees).`, { parsedIntent: intent });
-                        } else {
-                            addMessage('agent', "I can currently only auto-calculate 'max' amounts for SOL.", { parsedIntent: intent });
-                            continue;
-                        }
-                    } catch (e: any) {
-                        addMessage('agent', `❌ Failed to check balance: ${e.message}`, { parsedIntent: intent });
-                        continue;
-                    }
-                }
-
-                // ── Staking: start the interactive conversation ──
-                if (action.type === 'stake') {
-                    if (!action.amount) {
-                        addMessage('agent', "I need an amount to stake. How much SOL would you like to stake?", { parsedIntent: intent });
-                        continue;
-                    }
-
-                    // Pre-flight: check balance before even asking about validator
-                    // Staking requires rent exemption (~0.002 SOL) on top of the staked amount + fees
-                    const stakeCheck = await preFlight({
-                        amountSol: action.amount,
-                        actionLabel: `stake ${action.amount} SOL`,
-                        feeReserveSol: 0.01,   // rent exemption + tx fee
-                    });
-                    if (!stakeCheck.ok) {
-                        addMessage('agent', stakeCheck.reason, { parsedIntent: intent });
-                        continue;
-                    }
-
-                    // Kick off the multi-turn conversation
-                    pendingStakeRef.current = {
-                        step: 'ask_validator_mode',
-                        amount: action.amount,
-                    };
-
-                    addMessage('agent',
-                        `I'm ready to stake **${action.amount} SOL** for you! 🎯\n\n` +
-                        `Before I proceed, would you like to:\n\n` +
-                        `• **"auto"** — I'll automatically choose a reliable devnet validator\n` +
-                        `• **"custom"** — You provide your own validator vote account address\n\n` +
-                        `Which do you prefer?`,
-                        { parsedIntent: intent }
-                    );
-                    continue;
-                }
-
-                // ── Transfer ──
-                let transaction: VersionedTransaction | null = null;
-                let replyMsg = '';
-
-                if (action.type === 'transfer') {
-                    if (!action.amount || !action.recipient) {
-                        addMessage('agent', "I need an amount and a destination address to transfer.", { parsedIntent: intent });
-                        continue;
-                    }
-
-                    // Pre-flight: validate address + check balance
-                    const txCheck = await preFlight({
-                        amountSol: action.amount,
-                        recipient: action.recipient,
-                        actionLabel: `transfer ${action.amount} SOL`,
-                    });
-                    if (!txCheck.ok) {
-                        addMessage('agent', txCheck.reason, { parsedIntent: intent });
-                        continue;
-                    }
-
-                    try {
-                        transaction = await solanaService.createTransferTransaction(
-                            connection,
-                            publicKey,
-                            new PublicKey(action.recipient),
-                            action.amount
-                        );
-                        replyMsg = `⏳ Sending **${action.amount} SOL** to \`${action.recipient.slice(0, 8)}…\`\nPlease approve in your wallet.`;
-                    } catch (e: any) {
-                        addMessage('agent', `❌ Invalid transfer parameters: ${e.message}`);
-                        continue;
-                    }
-                }
-
-                // ── Swap ──
-                else if (action.type === 'swap') {
-                    if (!action.amount || !action.sourceToken || !action.destinationToken) {
-                        addMessage('agent', "I need an amount, source token, and destination token to swap.", { parsedIntent: intent });
-                        continue;
-                    }
-
-                    const sourceMint = TOKENS[action.sourceToken.toUpperCase()];
-                    const destMint = TOKENS[action.destinationToken.toUpperCase()];
-
-                    if (!sourceMint || !destMint) {
-                        addMessage('agent', `Unsupported tokens. I currently support: ${Object.keys(TOKENS).join(', ')}.`, { parsedIntent: intent });
-                        continue;
-                    }
-
-                    // Pre-flight: if swapping FROM SOL, check SOL balance
-                    if (action.sourceToken.toUpperCase() === 'SOL') {
-                        const swapCheck = await preFlight({
-                            amountSol: action.amount,
-                            actionLabel: `swap ${action.amount} SOL → ${action.destinationToken.toUpperCase()}`,
-                        });
-                        if (!swapCheck.ok) {
-                            addMessage('agent', swapCheck.reason, { parsedIntent: intent });
-                            continue;
-                        }
-                    }
-
-                    try {
-                        const sourceDecimals = action.sourceToken.toUpperCase() === 'SOL' ? 9 : 6;
-                        const amountLamports = Math.floor(action.amount * (10 ** sourceDecimals));
-                        const quoteInfo = await jupiterService.getQuote(sourceMint, destMint, amountLamports);
-
-                        const destDecimals = action.destinationToken.toUpperCase() === 'SOL' ? 9 : 6;
-                        const outAmountHuman = parseInt(quoteInfo.outAmount) / (10 ** destDecimals);
-
-                        replyMsg = `⏳ Swapping **${action.amount} ${action.sourceToken.toUpperCase()}** → ~**${outAmountHuman.toFixed(4)} ${action.destinationToken.toUpperCase()}** via Jupiter…\nPlease approve in your wallet.`;
-
-                        const { swapTransaction } = await jupiterService.getSwapTransaction(quoteInfo, publicKey.toString());
-                        transaction = jupiterService.deserializeTransaction(swapTransaction);
-                    } catch (e: any) {
-                        addMessage('agent', `❌ Swap failed: ${e.message}`);
-                        continue;
-                    }
-                }
-
-                // ── Execute transaction ──
-                if (transaction) {
-                    try {
-                        addMessage('agent', replyMsg, { parsedIntent: intent });
-                        const signature = await sendTransaction(transaction, connection);
-
-                        await transactionService.createTransaction({
-                            signature,
-                            type: action.type,
-                            amount: action.amount || 0,
-                            token: action.destinationToken || action.token || 'SOL',
-                            recipient: action.recipient,
-                            status: 'success'
-                        });
-
-                        addMessage('agent', `✅ Transaction sent!\nSignature: ${signature.slice(0, 12)}…`, { parsedIntent: intent });
-                        setTimeout(refreshBalance, 2000);
-                    } catch (executeError: any) {
-                        addMessage('agent', `❌ Transaction failed: ${executeError.message}`, { parsedIntent: intent });
-                    }
-                }
+                await executeAction(action, intent);
             }
         } catch (error: any) {
             addMessage('agent', `An error occurred: ${error.message}`);
@@ -530,6 +332,276 @@ export function useAgent() {
             setIsProcessing(false);
         }
     };
+
+    // ─── Execute a single action (called by NLP intent OR direct execute) ────
+    const executeAction = async (action: any, intent?: any) => {
+        let replyContent = '';
+
+        // ── Intercept Scheduled Actions ──
+        if (action.schedule) {
+            try {
+                let label = '';
+                switch (action.schedule.type) {
+                    case 'time':
+                        const dateStr = new Date(action.schedule.isoDate || '').toLocaleString();
+                        label = `Execute ${action.type} of ${action.amount || 'some'} ${action.sourceToken || action.token || 'SOL'} at ${dateStr}`;
+                        break;
+                    case 'price_gte':
+                        label = `Execute ${action.type} when ${action.schedule.token} goes above $${action.schedule.priceUsd}`;
+                        break;
+                    case 'price_lte':
+                        label = `Execute ${action.type} when ${action.schedule.token} drops below $${action.schedule.priceUsd}`;
+                        break;
+                    case 'idle':
+                        label = `Execute ${action.type} if idle for ${action.schedule.hours} hours`;
+                        break;
+                }
+
+                // Use specific labels for clarity when possible
+                if (action.type === 'transfer') label = `Send ${action.amount} SOL to ${action.recipient?.slice(0, 6)}… (${action.schedule.type})`;
+                if (action.type === 'swap') label = `Swap ${action.amount} ${action.sourceToken} → ${action.destinationToken} (${action.schedule.type})`;
+                if (action.type === 'stake') label = `Stake ${action.amount} SOL (${action.schedule.type})`;
+
+                await schedulerService.createTask({
+                    actionType: action.type,
+                    actionPayload: action,
+                    triggerType: action.schedule.type,
+                    triggerAt: action.schedule.isoDate,
+                    triggerPrice: action.schedule.priceUsd,
+                    triggerToken: action.schedule.token,
+                    idleHours: action.schedule.hours,
+                    label
+                });
+
+                addMessage('agent', `🗓️ Got it! I've scheduled this task for you:\n**${label}**\n\nI'll notify you here and by email when it's ready. You can manage it in the Scheduled Tasks panel.`, { parsedIntent: intent });
+            } catch (e: any) {
+                addMessage('agent', `❌ Failed to schedule task: ${e.message}`, { parsedIntent: intent });
+            }
+            return; // Skip immediate execution
+        }
+
+        if (action.type === 'unknown') {
+            replyContent = action.message || intent.rawResponse || "I couldn't understand that request. Could you rephrase it?";
+            if (replyContent.includes('{"actions"')) {
+                replyContent = "I couldn't understand that request. Could you rephrase it?";
+            }
+            addMessage('agent', replyContent, { parsedIntent: intent });
+            return;
+        }
+
+        if (action.type === 'balance') {
+            if (!publicKey) {
+                addMessage('agent', "Please connect your Solana wallet so I can check your balance.", { parsedIntent: intent });
+                return;
+            }
+            try {
+                const bal = await solanaService.getBalance(connection, publicKey);
+                addMessage('agent', `Your current balance is **${bal} SOL**.`, { parsedIntent: intent });
+                refreshBalance();
+            } catch (e: any) {
+                addMessage('agent', `❌ Failed to get balance: ${e.message}`, { parsedIntent: intent });
+            }
+            return;
+        }
+
+        if (!publicKey) {
+            addMessage('agent', "Please connect your Solana wallet first to perform transactions.", { parsedIntent: intent });
+            return;
+        }
+
+        // ── Max amount calculation ──
+        if (action.useMax) {
+            try {
+                const isSolSource =
+                    (action.type === 'swap' && action.sourceToken?.toUpperCase() === 'SOL') ||
+                    ((action.type === 'transfer' || action.type === 'stake') && action.token?.toUpperCase() === 'SOL');
+
+                if (isSolSource) {
+                    const available = await solanaService.getBalance(connection, publicKey);
+                    const amountToUse = available - 0.005;
+
+                    if (amountToUse <= 0) {
+                        addMessage('agent', `Your balance (${available} SOL) is too low after reserving fees.`, { parsedIntent: intent });
+                        return;
+                    }
+
+                    action.amount = Math.floor(amountToUse * 10000) / 10000;
+                    addMessage('agent', `Auto-calculated amount: ${action.amount} SOL (reserved 0.005 SOL for fees).`, { parsedIntent: intent });
+                } else {
+                    addMessage('agent', "I can currently only auto-calculate 'max' amounts for SOL.", { parsedIntent: intent });
+                    return;
+                }
+            } catch (e: any) {
+                addMessage('agent', `❌ Failed to check balance: ${e.message}`, { parsedIntent: intent });
+                return;
+            }
+        }
+
+        // ── Staking: start the interactive conversation ──
+        if (action.type === 'stake') {
+            if (!action.amount) {
+                addMessage('agent', "I need an amount to stake. How much SOL would you like to stake?", { parsedIntent: intent });
+                return;
+            }
+
+            // Pre-flight: check balance before even asking about validator
+            // Staking requires rent exemption (~0.002 SOL) on top of the staked amount + fees
+            const stakeCheck = await preFlight({
+                amountSol: action.amount,
+                actionLabel: `stake ${action.amount} SOL`,
+                feeReserveSol: 0.01,   // rent exemption + tx fee
+            });
+            if (!stakeCheck.ok) {
+                addMessage('agent', stakeCheck.reason, { parsedIntent: intent });
+                return;
+            }
+
+            // Kick off the multi-turn conversation
+            pendingStakeRef.current = {
+                step: 'ask_validator_mode',
+                amount: action.amount,
+            };
+
+            addMessage('agent',
+                `I'm ready to stake **${action.amount} SOL** for you! 🎯\n\n` +
+                `Before I proceed, would you like to:\n\n` +
+                `• **"auto"** — I'll automatically choose a reliable devnet validator\n` +
+                `• **"custom"** — You provide your own validator vote account address\n\n` +
+                `Which do you prefer?`,
+                { parsedIntent: intent }
+            );
+            return;
+        }
+
+        // ── Transfer ──
+        let transaction: VersionedTransaction | null = null;
+        let replyMsg = '';
+
+        if (action.type === 'transfer') {
+            if (!action.amount || !action.recipient) {
+                addMessage('agent', "I need an amount and a destination address to transfer.", { parsedIntent: intent });
+                return;
+            }
+
+            // Pre-flight: validate address + check balance
+            const txCheck = await preFlight({
+                amountSol: action.amount,
+                recipient: action.recipient,
+                actionLabel: `transfer ${action.amount} SOL`,
+            });
+            if (!txCheck.ok) {
+                addMessage('agent', txCheck.reason, { parsedIntent: intent });
+                return;
+            }
+
+            try {
+                transaction = await solanaService.createTransferTransaction(
+                    connection,
+                    publicKey,
+                    new PublicKey(action.recipient),
+                    action.amount
+                );
+                replyMsg = `⏳ Sending **${action.amount} SOL** to \`${action.recipient.slice(0, 8)}…\`\nPlease approve in your wallet.`;
+            } catch (e: any) {
+                addMessage('agent', `❌ Invalid transfer parameters: ${e.message}`);
+                return;
+            }
+        }
+
+        // ── Swap ──
+        else if (action.type === 'swap') {
+            if (!action.amount || !action.sourceToken || !action.destinationToken) {
+                addMessage('agent', "I need an amount, source token, and destination token to swap.", { parsedIntent: intent });
+                return;
+            }
+
+            const sourceMint = TOKENS[action.sourceToken.toUpperCase()];
+            const destMint = TOKENS[action.destinationToken.toUpperCase()];
+
+            if (!sourceMint || !destMint) {
+                addMessage('agent', `Unsupported tokens. I currently support: ${Object.keys(TOKENS).join(', ')}.`, { parsedIntent: intent });
+                return;
+            }
+
+            // Pre-flight: if swapping FROM SOL, check SOL balance
+            if (action.sourceToken.toUpperCase() === 'SOL') {
+                const swapCheck = await preFlight({
+                    amountSol: action.amount,
+                    actionLabel: `swap ${action.amount} SOL → ${action.destinationToken.toUpperCase()}`,
+                });
+                if (!swapCheck.ok) {
+                    addMessage('agent', swapCheck.reason, { parsedIntent: intent });
+                    return;
+                }
+            }
+
+            try {
+                const sourceDecimals = action.sourceToken.toUpperCase() === 'SOL' ? 9 : 6;
+                const amountLamports = Math.floor(action.amount * (10 ** sourceDecimals));
+                const quoteInfo = await jupiterService.getQuote(sourceMint, destMint, amountLamports);
+
+                const destDecimals = action.destinationToken.toUpperCase() === 'SOL' ? 9 : 6;
+                const outAmountHuman = parseInt(quoteInfo.outAmount) / (10 ** destDecimals);
+
+                replyMsg = `⏳ Swapping **${action.amount} ${action.sourceToken.toUpperCase()}** → ~**${outAmountHuman.toFixed(4)} ${action.destinationToken.toUpperCase()}** via Jupiter…\nPlease approve in your wallet.`;
+
+                const { swapTransaction } = await jupiterService.getSwapTransaction(quoteInfo, publicKey.toString());
+                transaction = jupiterService.deserializeTransaction(swapTransaction);
+            } catch (e: any) {
+                addMessage('agent', `❌ Swap failed: ${e.message}`);
+                return;
+            }
+        }
+
+        // ── Execute transaction ──
+        if (transaction) {
+            try {
+                addMessage('agent', replyMsg, { parsedIntent: intent });
+                const signature = await sendTransaction(transaction, connection);
+
+                await transactionService.createTransaction({
+                    signature,
+                    type: action.type,
+                    amount: action.amount || 0,
+                    token: action.destinationToken || action.token || 'SOL',
+                    recipient: action.recipient,
+                    status: 'success'
+                });
+
+                addMessage('agent', `✅ Transaction sent!\nSignature: ${signature.slice(0, 12)}…`, { parsedIntent: intent });
+                setTimeout(refreshBalance, 2000);
+            } catch (executeError: any) {
+                addMessage('agent', `❌ Transaction failed: ${executeError.message}`, { parsedIntent: intent });
+            }
+        }
+    };
+
+    // Bind this so ChatInterface can call it directly with Scheduled Task payloads
+    useEffect(() => {
+        (window as any)._executeDirectAction = async (task: any) => {
+            if (!task || !task.actionPayload) return;
+
+            // Re-construct a mock intent context if we don't have one
+            const mockIntent = { rawResponse: `Direct execution of ${task.label}` };
+
+            setIsProcessing(true);
+            try {
+                // If it's a scheduled action being executed, we want to skip the "schedule" intercept
+                // so we clone and remove the schedule block so it executes immediately
+                const clonedAction = { ...task.actionPayload };
+                delete clonedAction.schedule;
+
+                await executeAction(clonedAction, mockIntent);
+            } catch (err: any) {
+                console.error("Direct execution failed", err);
+            } finally {
+                setIsProcessing(false);
+            }
+        };
+        return () => {
+            delete (window as any)._executeDirectAction;
+        };
+    }, [publicKey, connection, sendTransaction, refreshBalance]);
 
     return {
         messages,
