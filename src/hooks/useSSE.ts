@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-const TOKEN_KEY = 'ai_agent_wallet_token';
+const TOKEN_KEY = 'autofi_token';
 
 type SSEEventHandler = (data: unknown) => void;
 

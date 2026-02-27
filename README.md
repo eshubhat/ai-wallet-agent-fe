@@ -1,6 +1,6 @@
-# Solana AI Agent Wallet - Frontend
+# AutoFi - Frontend
 
-This is the frontend component of the Solana AI Agent Wallet, a React + Vite Single Page Application (SPA). It provides the user interface for interacting with the AI agent, viewing wallet balances, managing scheduled tasks, and signing transactions locally.
+This is the frontend component of AutoFi, a React + Vite Single Page Application (SPA). It provides the user interface for interacting with the AI agent, viewing wallet balances, managing scheduled tasks, and signing transactions locally.
 
 ## ✨ Features
 

@@ -32,6 +32,20 @@ export const Header = () => {
     const path = useLocation().pathname;
     const [isContactsOpen, setIsContactsOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    const showToast = (message: string) => {
+        setToastMessage(message);
+        setTimeout(() => setToastMessage(null), 3000);
+    };
+
+    const handleProtectedAction = (action: () => void) => {
+        if (!user) {
+            showToast('Please login to enable this feature');
+            return;
+        }
+        action();
+    };
 
     const initials = user
         ? (user.name || user.email)
@@ -55,7 +69,7 @@ export const Header = () => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                     <h2 style={{ fontSize: '1.2rem', letterSpacing: '-0.01em', margin: 0 }}>
-                        AgentWallet<span style={{ color: 'var(--accent-color)' }}>.AI</span>
+                        Auto<span style={{ color: 'var(--accent-color)' }}>Fi</span>
                     </h2>
                     <span style={{
                         fontSize: '0.65rem',
@@ -72,9 +86,21 @@ export const Header = () => {
 
             {/* Right side actions */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <NavIconBtn icon={<Users size={15} />} label="Contacts" onClick={() => setIsContactsOpen(true)} />
-                <NavIconBtn icon={<Activity size={15} />} label={path === "/analytics" ? "Chat" : "Analytics"} onClick={() => navigate(path === "/analytics" ? "/" : "/analytics")} />
-                <NavIconBtn icon={<Settings size={15} />} label="Settings" onClick={() => setIsSettingsOpen(true)} />
+                <NavIconBtn
+                    icon={<Users size={15} />}
+                    label="Contacts"
+                    onClick={() => handleProtectedAction(() => setIsContactsOpen(true))}
+                />
+                <NavIconBtn
+                    icon={<Activity size={15} />}
+                    label={path === "/analytics" ? "Chat" : "Analytics"}
+                    onClick={() => handleProtectedAction(() => navigate(path === "/analytics" ? "/" : "/analytics"))}
+                />
+                <NavIconBtn
+                    icon={<Settings size={15} />}
+                    label="Settings"
+                    onClick={() => setIsSettingsOpen(true)}
+                />
 
                 <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 4px' }} />
 
@@ -105,6 +131,27 @@ export const Header = () => {
 
             <ContactsModal isOpen={isContactsOpen} onClose={() => setIsContactsOpen(false)} />
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+            {/* Toast Notification */}
+            {toastMessage && (
+                <div style={{
+                    position: 'fixed',
+                    top: '80px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(0,0,0,0.85)',
+                    color: '#fff',
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(153, 69, 255, 0.5)',
+                    boxShadow: '0 0 15px rgba(153, 69, 255, 0.4)',
+                    fontSize: '0.9rem',
+                    zIndex: 9999,
+                    animation: 'fadeInOut 0.3s ease',
+                }}>
+                    {toastMessage}
+                </div>
+            )}
         </header>
     );
 };

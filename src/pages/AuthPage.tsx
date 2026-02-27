@@ -105,7 +105,7 @@ export const AuthPage = () => {
                     </div>
 
                     <h1 style={{ fontSize: '2.2rem', marginBottom: '0.4rem' }}>
-                        AgentWallet<span style={{ color: 'var(--accent-color)' }}>.AI</span>
+                        Auto<span style={{ color: 'var(--accent-color)' }}>Fi</span>
                     </h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>
                         {mode === 'signin' ? 'Welcome back! Sign in to continue.' : 'Create your account to get started.'}

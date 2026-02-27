@@ -17,8 +17,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         // Hydrate from localStorage on boot
-        const storedToken = localStorage.getItem('ai_agent_wallet_token');
-        const storedUser = localStorage.getItem('ai_agent_wallet_user');
+        const storedToken = localStorage.getItem('autofi_token');
+        const storedUser = localStorage.getItem('autofi_user');
 
         if (storedToken && storedUser) {
             setToken(storedToken);
@@ -33,15 +33,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const login = (userData: User, newToken: string) => {
         setUser(userData);
         setToken(newToken);
-        localStorage.setItem('ai_agent_wallet_token', newToken);
-        localStorage.setItem('ai_agent_wallet_user', JSON.stringify(userData));
+        localStorage.setItem('autofi_token', newToken);
+        localStorage.setItem('autofi_user', JSON.stringify(userData));
     };
 
     const logout = () => {
         setUser(null);
         setToken(null);
-        localStorage.removeItem('ai_agent_wallet_token');
-        localStorage.removeItem('ai_agent_wallet_user');
+        localStorage.removeItem('autofi_token');
+        localStorage.removeItem('autofi_user');
     };
 
     return (
